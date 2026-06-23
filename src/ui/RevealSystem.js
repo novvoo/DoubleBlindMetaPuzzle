@@ -41,6 +41,13 @@ export class RevealSystem {
     this.state.consumeRevealToken(player);
     const rule = this.state.revealRule(player, x, y);
 
+    // 关键：揭示的规则立即对双方生效（共识机制）
+    const entityKey = rule.entity.toLowerCase();
+    const propertyKey = rule.property.toLowerCase();
+    for (const p of [PLAYERS.A, PLAYERS.B]) {
+      this.state.playerRules[p][entityKey] = propertyKey;
+    }
+
     return {
       success: true,
       message: `${player === PLAYERS.A ? '玩家A' : '玩家B'}揭示了规则: ${rule.entity} IS ${rule.property}`,

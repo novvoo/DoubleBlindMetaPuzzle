@@ -3,11 +3,13 @@ import { PLAYERS, DIRECTIONS, PROPERTIES } from '../game/constants.js';
 /**
  * AI 控制器 - 让两个 AI 自动合作解谜
  * 
- * 策略：
- * 1. 站在未揭示规则格上 → 使用揭示令牌
- * 2. 旗帜可见且可达 → BFS寻路到旗帜
- * 3. 探索未知区域 → 向迷雾边缘移动
- * 4. 合作：利用对方揭示的规则更新认知
+ * 策略（优先级降序）：
+ * 1. 站在未揭示规则格上 → 使用揭示令牌揭示规则
+ * 2. 已知 flag=win 且旗帜可见 → BFS寻路到旗帜获胜
+ * 3. 已揭示区域有未揭示规则 → BFS去揭示规则（必须先知道 flag=win 才能赢）
+ * 4. 探索未知区域 → 向迷雾边缘移动扩大视野
+ * 5. 卡住太多次 → 随机尝试任意可行方向
+ * 6. 无路可走 → 等待跳过回合
  */
 export class AIController {
   constructor(game) {
@@ -45,10 +47,25 @@ export class AIController {
       return { action: 'reveal', player };
     }
 
-    // 2. 寻找旗帜并尝试到达
-    const flagPos = this._findVisibleFlag(player);
-    if (flagPos) {
-      const path = this._findPath(player, pos.x, pos.y, flagPos.x, flagPos.y);
+    // 2. 如果已知 flag=win 且旗帜可见 → BFS 寻路到旗帜
+    const flagProp = this._getEffectiveProperty(player, 'flag');
+    if (flagProp === PROPERTIES.WIN) {
+      const flagPos = this._findVisibleFlag(player);
+      if (flagPos) {
+        const path = this._findPath(player, pos.x, pos.y, flagPos.x, flagPos.y);
+        if (path && path.length > 0) {
+          const dir = this._directionFromDelta(path[0].x - pos.x, path[0].y - pos.y);
+          if (dir && !this._isFailedMove(player, posKey, dir)) {
+            return { action: 'move', player, direction: dir };
+          }
+        }
+      }
+    }
+
+    // 3. 寻找已揭示但未揭示规则的可达格子 → 优先去揭示规则
+    const ruleTarget = this._findUnrevealedRuleCell(player, pos.x, pos.y);
+    if (ruleTarget) {
+      const path = this._findPath(player, pos.x, pos.y, ruleTarget.x, ruleTarget.y);
       if (path && path.length > 0) {
         const dir = this._directionFromDelta(path[0].x - pos.x, path[0].y - pos.y);
         if (dir && !this._isFailedMove(player, posKey, dir)) {
@@ -57,13 +74,13 @@ export class AIController {
       }
     }
 
-    // 3. 探索未知区域
+    // 4. 探索未知区域（迷雾边缘）
     const exploreDirection = this._exploreDirection(player, pos.x, pos.y);
     if (exploreDirection && !this._isFailedMove(player, posKey, exploreDirection)) {
       return { action: 'move', player, direction: exploreDirection };
     }
 
-    // 4. 如果 stuck 太多次，尝试任意可行方向
+    // 5. 如果 stuck 太多次，尝试任意可行方向
     if (this.stuckCounter[player] > 2) {
       const anyDir = this._tryAnyDirection(player, pos.x, pos.y);
       if (anyDir) {
@@ -71,7 +88,7 @@ export class AIController {
       }
     }
 
-    // 5. 无路可走 → 等待
+    // 6. 无路可走 → 等待
     return { action: 'wait', player };
   }
 
@@ -102,6 +119,52 @@ export class AIController {
         }
       }
     }
+    return null;
+  }
+
+  /**
+   * 在已揭示区域内寻找尚未揭示规则的格子
+   * 返回离当前位置最近的一个（BFS可达的）
+   */
+  _findUnrevealedRuleCell(player, fromX, fromY) {
+    const state = this.game.state;
+    const w = state.width;
+    const h = state.height;
+    const candidates = [];
+
+    // 扫描所有已揭示且有未揭示规则的格子
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (!state.isRevealedTo(player, x, y)) continue;
+        const cell = state.grid.cells[y][x];
+        if (!cell.rules || cell.rules.length === 0) continue;
+        if (state.isRuleRevealed(x, y)) continue;
+        // 有未揭示规则！用曼哈顿距离预排序
+        candidates.push({
+          x, y,
+          dist: Math.abs(x - fromX) + Math.abs(y - fromY),
+        });
+      }
+    }
+
+    if (candidates.length === 0) return null;
+
+    // 按曼哈顿距离排序，优先尝试最近的几个
+    candidates.sort((a, b) => a.dist - b.dist);
+
+    // 尝试 BFS 寻路到最近的候选格
+    for (const c of candidates) {
+      if (c.x === fromX && c.y === fromY) {
+        // 已经在规则格上！但 _shouldReveal 已在前面检查过了
+        // 这种情况不应该发生，但防御性返回
+        return c;
+      }
+      const path = this._findPath(player, fromX, fromY, c.x, c.y);
+      if (path && path.length > 0) {
+        return c;
+      }
+    }
+
     return null;
   }
 

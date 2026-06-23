@@ -108,7 +108,7 @@ export const LEVELS = [
       'player_b': 'stop',
       'baba': 'stop',
       'keke': 'push',
-      'flag': 'win',
+      // 注意：flag 的 win 属性必须通过揭示 (2,8) 格子的规则来获知
     },
     rulesB: {
       'wall': 'stop',
@@ -116,7 +116,7 @@ export const LEVELS = [
       'player_a': 'stop',
       'baba': 'push',
       'keke': 'stop',
-      'flag': 'win',
+      // 注意：flag 的 win 属性必须通过揭示 (2,8) 格子的规则来获知
     },
     description: 'A 推🐱凯凯 · B 推🐑巴巴 · 合作清障，踩🚩旗帜获胜！',
   },

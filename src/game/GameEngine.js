@@ -183,7 +183,18 @@ export class GameEngine {
     const entities = cell.entities || [];
 
     for (const entity of entities) {
-      const prop = this.state.getEntityProperty(player, entity.type);
+      // 优先查玩家自身规则，再查已揭示的共享规则（共识）
+      let prop = this.state.getEntityProperty(player, entity.type);
+      if (prop === PROPERTIES.NONE) {
+        // 回退到已揭示规则
+        const entityKey = entity.type.toLowerCase();
+        for (const revealed of this.state.revealedRules) {
+          if (revealed.rule.entity.toLowerCase() === entityKey) {
+            prop = revealed.rule.property.toLowerCase();
+            break;
+          }
+        }
+      }
       if (prop === PROPERTIES.WIN) {
         return { entity, player };
       }
