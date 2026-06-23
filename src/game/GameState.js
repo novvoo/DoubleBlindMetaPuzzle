@@ -34,6 +34,9 @@ export class GameState {
 
     this.revealedRules = [];
 
+    // 暗雾：定时生成，消耗揭示令牌清除
+    this.darkFogCells = new Set(); // "x,y" 字符串集合
+
     this.playerPositions = null;
 
     // 每位玩家的访问路径（仅保留最近3步的记忆）
@@ -173,6 +176,35 @@ export class GameState {
     return { earned: false, total: this.revealTokens[player], step: count };
   }
 
+  // ── 暗雾系统 ──
+
+  hasDarkFog(x, y) {
+    return this.darkFogCells.has(`${x},${y}`);
+  }
+
+  addDarkFog(x, y) {
+    this.darkFogCells.add(`${x},${y}`);
+  }
+
+  clearDarkFog(x, y) {
+    return this.darkFogCells.delete(`${x},${y}`);
+  }
+
+  getDarkFogCount() {
+    return this.darkFogCells.size;
+  }
+
+  getDarkFogCellsForRendering() {
+    const result = [];
+    for (const key of this.darkFogCells) {
+      const [x, y] = key.split(',').map(Number);
+      result.push({ x, y });
+    }
+    return result;
+  }
+
+  // ── 规则揭示 ──
+
   revealRule(player, x, y) {
     const cell = this.grid.cells[y][x];
     if (!cell || !cell.rules || cell.rules.length === 0) return null;
@@ -220,6 +252,7 @@ export class GameState {
     copy.revealTokens = { ...this.revealTokens };
     copy.playerStepCounts = { ...this.playerStepCounts };
     copy.revealedRules = [...this.revealedRules];
+    copy.darkFogCells = new Set(this.darkFogCells);
     copy.playerPath = {
       [PLAYERS.A]: this.playerPath[PLAYERS.A].map(p => ({ ...p })),
       [PLAYERS.B]: this.playerPath[PLAYERS.B].map(p => ({ ...p })),

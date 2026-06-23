@@ -275,6 +275,17 @@
       border: 1px solid rgba(0,0,0,0.3);
     }
 
+    .cell.dark-fog {
+      background: linear-gradient(135deg, #2a2040 0%, #1a1525 50%, #2a2040 100%);
+      border: 2px solid rgba(180, 130, 220, 0.5);
+      box-shadow: inset 0 0 12px rgba(120, 80, 200, 0.25);
+      position: relative;
+    }
+    .cell.dark-fog .terrain-icon-muted {
+      opacity: 0.6;
+      filter: grayscale(0.3);
+    }
+
     .cell.revealed {
       background: var(--revealed-color);
     }

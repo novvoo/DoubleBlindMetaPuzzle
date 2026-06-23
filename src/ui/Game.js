@@ -1,4 +1,4 @@
-import { PLAYERS, DIRECTIONS } from '../game/constants.js';
+import { PLAYERS, DIRECTIONS, DARK_FOG_INTERVAL, DARK_FOG_MAX } from '../game/constants.js';
 import { GameState } from '../game/GameState.js';
 import { GameEngine } from '../game/GameEngine.js';
 import { getLevel, getLevelCount } from '../game/Levels.js';
@@ -44,6 +44,9 @@ export class Game {
     // AI 模式下旗帜位置变化计数器
     this._aiFlagMoveCounter = 0;
     this._flagMoveInterval = 5;
+
+    // 暗雾生成计数器（全局步数）
+    this._globalStepCount = 0;
   }
 
   start() {
@@ -287,6 +290,50 @@ export class Game {
     this.log.add(`🚩 旗帜移动到 (${target.x}, ${target.y})`, 'system');
   }
 
+  /**
+   * 在随机已揭示的空地板格上生成暗雾
+   * 暗雾消耗令牌才能清除，制造持续的令牌压力
+   */
+  _spawnDarkFog() {
+    const state = this.state;
+    const currentCount = state.getDarkFogCount();
+    if (currentCount >= DARK_FOG_MAX) return; // 已达上限
+
+    const posA = state.getPlayerPosition(PLAYERS.A);
+    const posB = state.getPlayerPosition(PLAYERS.B);
+    const candidates = [];
+
+    for (let y = 0; y < state.height; y++) {
+      for (let x = 0; x < state.width; x++) {
+        const cell = state.grid.cells[y][x];
+        // 不能是墙壁
+        if (cell.terrain === 'wall') continue;
+        // 已揭示（双方任一）
+        if (!state.isRevealedTo(PLAYERS.A, x, y) &&
+            !state.isRevealedTo(PLAYERS.B, x, y)) continue;
+        // 不能已有暗雾
+        if (state.hasDarkFog(x, y)) continue;
+        // 不能有实体
+        if (cell.entities && cell.entities.length > 0) continue;
+        // 不能在玩家脚下
+        if ((posA && posA.x === x && posA.y === y) ||
+            (posB && posB.x === x && posB.y === y)) continue;
+        candidates.push({ x, y });
+      }
+    }
+
+    if (candidates.length === 0) return;
+
+    // 每次生成 1-2 个暗雾
+    const count = Math.min(1 + Math.floor(Math.random() * 2), DARK_FOG_MAX - currentCount);
+    const shuffled = candidates.sort(() => Math.random() - 0.5);
+
+    for (let i = 0; i < count && i < shuffled.length; i++) {
+      state.addDarkFog(shuffled[i].x, shuffled[i].y);
+      this.log.add(`🌫️ 暗雾出现于 (${shuffled[i].x}, ${shuffled[i].y})`, 'system');
+    }
+  }
+
   _setupLevelSelect() {
     const select = document.getElementById('level-select');
     const count = getLevelCount();
@@ -351,7 +398,9 @@ export class Game {
     this.state.revealTokens = { [PLAYERS.A]: 3, [PLAYERS.B]: 3 };
     this.state.playerStepCounts = { [PLAYERS.A]: 0, [PLAYERS.B]: 0 };
     this.state.revealedRules = [];
+    this.state.darkFogCells = new Set();
     this.state.playerPath = { [PLAYERS.A]: [], [PLAYERS.B]: [] };
+    this._globalStepCount = 0;
 
     this._placePlayerEntity(PLAYERS.A, startForA.x, startForA.y);
     this._placePlayerEntity(PLAYERS.B, startForB.x, startForB.y);
@@ -480,6 +529,24 @@ export class Game {
     if (this.winner) return;
 
     const pos = this.state.players[player];
+
+    // 优先级 1：清除暗雾（消耗令牌）
+    if (this.state.hasDarkFog(pos.x, pos.y)) {
+      const fogResult = this.reveal.clearDarkFog(player, pos.x, pos.y);
+      if (fogResult.success) {
+        this.log.add(fogResult.message, 'reveal');
+        this.rendererA.render();
+        this.rendererB.render();
+        this._updateHUD();
+        this._advanceTurn(player);
+        return;
+      }
+      // 没令牌了，给出提示
+      this.log.add(fogResult.message, 'warning');
+      return;
+    }
+
+    // 优先级 2：揭示规则
     const result = this.reveal.revealRule(player, pos.x, pos.y);
 
     if (result.success) {
@@ -548,6 +615,12 @@ export class Game {
       );
     }
 
+    // 暗雾生成：每 N 步全局触发一次
+    this._globalStepCount++;
+    if (this._globalStepCount % DARK_FOG_INTERVAL === 0) {
+      this._spawnDarkFog();
+    }
+
     this.movesThisTurn++;
     if (this.movesThisTurn >= this.maxMovesPerTurn) {
       this.movesThisTurn = 0;
@@ -570,8 +643,15 @@ export class Game {
     const tokensB = this.reveal.getRevealTokenCount(PLAYERS.B);
     const stepsA = this.state.playerStepCounts[PLAYERS.A] || 0;
     const stepsB = this.state.playerStepCounts[PLAYERS.B] || 0;
+    const fogCount = this.state.getDarkFogCount();
     document.getElementById('player-a-name').textContent = `玩家A (令牌: ${tokensA} | 步数: ${stepsA})`;
     document.getElementById('player-b-name').textContent = `玩家B (令牌: ${tokensB} | 步数: ${stepsB})`;
+    const turnEl = document.getElementById('turn-indicator');
+    if (turnEl) {
+      turnEl.innerHTML = fogCount > 0
+        ? `当前回合: <span id="turn-num">${this.turn === PLAYERS.A ? 'A' : 'B'}</span> 🌫️暗雾: ${fogCount}/${DARK_FOG_MAX}`
+        : `当前回合: <span id="turn-num">${this.turn === PLAYERS.A ? 'A' : 'B'}</span>`;
+    }
 
     // Highlight active player's board
     const wrapperA = document.getElementById('board-wrapper-a');
@@ -633,6 +713,7 @@ export class Game {
     this.reveal = new RevealSystem(this.state);
     this.log = new MessageLog('message-log');
     this._aiFlagMoveCounter = 0;
+    this._globalStepCount = 0;
 
     this._loadLevel(this.currentLevel);
     this._initialReveal();

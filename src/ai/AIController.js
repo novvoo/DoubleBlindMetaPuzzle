@@ -4,12 +4,13 @@ import { PLAYERS, DIRECTIONS, PROPERTIES } from '../game/constants.js';
  * AI 控制器 - 让两个 AI 自动合作解谜
  * 
  * 策略（优先级降序）：
- * 1. 站在未揭示规则格上 → 使用揭示令牌揭示规则
- * 2. 已知 flag=win 且旗帜可见 → BFS寻路到旗帜获胜
- * 3. 已揭示区域有未揭示规则 → BFS去揭示规则（必须先知道 flag=win 才能赢）
- * 4. 探索未知区域 → 向迷雾边缘移动扩大视野
- * 5. 卡住太多次 → 随机尝试任意可行方向
- * 6. 无路可走 → 等待跳过回合
+ * 1. 站在暗雾格上 → 消耗令牌清除暗雾
+ * 2. 站在未揭示规则格上 → 使用揭示令牌揭示规则
+ * 3. 已知 flag=win 且旗帜可见 → BFS寻路到旗帜获胜
+ * 4. 已揭示区域有未揭示规则 → BFS去揭示规则（含暗雾覆盖的规则格）
+ * 5. 探索未知区域 → 向迷雾边缘移动扩大视野
+ * 6. 卡住太多次 → 随机尝试任意可行方向
+ * 7. 无路可走 → 等待跳过回合
  */
 export class AIController {
   constructor(game) {
@@ -42,12 +43,17 @@ export class AIController {
       this.failedMoves[player].clear();
     }
 
-    // 1. 如果站在未揭示规则格上，且有揭示令牌 → 揭示
+    // 1. 如果站在暗雾格上，且有揭示令牌 → 清除暗雾（优先）
+    if (this._shouldClearDarkFog(player, pos.x, pos.y)) {
+      return { action: 'reveal', player, clearFog: true };
+    }
+
+    // 2. 如果站在未揭示规则格上，且有揭示令牌 → 揭示
     if (this._shouldReveal(player, pos.x, pos.y)) {
       return { action: 'reveal', player };
     }
 
-    // 2. 如果已知 flag=win 且旗帜可见 → BFS 寻路到旗帜
+    // 3. 如果已知 flag=win 且旗帜可见 → BFS 寻路到旗帜
     const flagProp = this._getEffectiveProperty(player, 'flag');
     if (flagProp === PROPERTIES.WIN) {
       const flagPos = this._findVisibleFlag(player);
@@ -62,7 +68,7 @@ export class AIController {
       }
     }
 
-    // 3. 寻找已揭示但未揭示规则的可达格子 → 优先去揭示规则
+    // 4. 寻找已揭示但未揭示规则的可达格子 → 优先去揭示规则（含暗雾覆盖的规则格）
     const ruleTarget = this._findUnrevealedRuleCell(player, pos.x, pos.y);
     if (ruleTarget) {
       const path = this._findPath(player, pos.x, pos.y, ruleTarget.x, ruleTarget.y);
@@ -74,13 +80,13 @@ export class AIController {
       }
     }
 
-    // 4. 探索未知区域（迷雾边缘）
+    // 5. 探索未知区域（迷雾边缘）
     const exploreDirection = this._exploreDirection(player, pos.x, pos.y);
     if (exploreDirection && !this._isFailedMove(player, posKey, exploreDirection)) {
       return { action: 'move', player, direction: exploreDirection };
     }
 
-    // 5. 如果 stuck 太多次，尝试任意可行方向
+    // 6. 如果 stuck 太多次，尝试任意可行方向
     if (this.stuckCounter[player] > 2) {
       const anyDir = this._tryAnyDirection(player, pos.x, pos.y);
       if (anyDir) {
@@ -88,7 +94,7 @@ export class AIController {
       }
     }
 
-    // 6. 无路可走 → 等待
+    // 7. 无路可走 → 等待
     return { action: 'wait', player };
   }
 
@@ -103,6 +109,13 @@ export class AIController {
     const cell = state.grid.cells[y][x];
     if (!cell || !cell.rules || cell.rules.length === 0) return false;
     if (state.isRuleRevealed(x, y)) return false;
+    if (!state.hasRevealToken(player)) return false;
+    return true;
+  }
+
+  _shouldClearDarkFog(player, x, y) {
+    const state = this.game.state;
+    if (!state.hasDarkFog(x, y)) return false;
     if (!state.hasRevealToken(player)) return false;
     return true;
   }

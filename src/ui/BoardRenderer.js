@@ -132,6 +132,26 @@ export class BoardRenderer {
     }
 
     const entities = cellObj.entities || [];
+    const hasDarkFog = this.state.hasDarkFog(x, y);
+
+    // 暗雾覆盖：即使已揭示，实体也被暗雾隐藏
+    if (hasDarkFog) {
+      cell.className = 'cell revealed dark-fog';
+      if (isWall) {
+        cell.classList.add('wall');
+      }
+      let fogHtml = '<span class="terrain-icon terrain-icon-muted">🌫️</span>';
+      // 暗雾中若对方在此，显示鬼影
+      if (opponentHere) {
+        const ghostIcon = opponent === PLAYERS.B ? '🅱' : '🅰';
+        const ghostClass = opponent === PLAYERS.B ? 'ghost-b-icon' : 'ghost-a-icon';
+        fogHtml += `<span class="${ghostClass}">${ghostIcon}</span>`;
+        cell.classList.add('has-ghost');
+      }
+      cell.innerHTML = fogHtml;
+      cell.title = `暗雾 (按 Q/U 消耗令牌清除)`;
+      return;
+    }
 
     cell.className = 'cell revealed';
 

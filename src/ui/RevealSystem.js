@@ -57,6 +57,29 @@ export class RevealSystem {
     };
   }
 
+  /**
+   * 清除暗雾：消耗 1 个揭示令牌，清除指定格子的暗雾覆盖
+   */
+  clearDarkFog(player, x, y) {
+    if (!this.state.hasRevealToken(player)) {
+      return { success: false, message: '没有揭示令牌，无法清除暗雾' };
+    }
+
+    if (!this.state.hasDarkFog(x, y)) {
+      return { success: false, message: '该位置没有暗雾' };
+    }
+
+    this.state.consumeRevealToken(player);
+    this.state.clearDarkFog(x, y);
+
+    return {
+      success: true,
+      message: `${player === PLAYERS.A ? '玩家A' : '玩家B'}清除了 (${x},${y}) 的暗雾！`,
+      x,
+      y,
+    };
+  }
+
   getRevealedEntities(x, y, player) {
     const cell = this.state.grid.cells[y][x];
     if (!cell) return [];

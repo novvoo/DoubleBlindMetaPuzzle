@@ -52,3 +52,5 @@ export const MESSAGE_TYPES = {
 export const MAX_REVEAL_TOKENS = 3;      // 初始揭示令牌数
 export const REVEAL_TOKEN_INTERVAL = 10; // 每 N 步自动获得 1 个揭示令牌
 export const REVEAL_TOKEN_CAP = 5;       // 揭示令牌持有上限
+export const DARK_FOG_INTERVAL = 3;      // 每 N 步（全局）生成 1 批暗雾
+export const DARK_FOG_MAX = 8;           // 棋盘暗雾格子上限
