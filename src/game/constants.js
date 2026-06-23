@@ -49,4 +49,6 @@ export const MESSAGE_TYPES = {
   WARNING: 'warning',
 };
 
-export const MAX_REVEAL_TOKENS = 3;
+export const MAX_REVEAL_TOKENS = 3;      // 初始揭示令牌数
+export const REVEAL_TOKEN_INTERVAL = 10; // 每 N 步自动获得 1 个揭示令牌
+export const REVEAL_TOKEN_CAP = 5;       // 揭示令牌持有上限

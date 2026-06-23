@@ -1,4 +1,4 @@
-import { PLAYERS, PROPERTIES } from './constants.js';
+import { PLAYERS, PROPERTIES, REVEAL_TOKEN_INTERVAL, REVEAL_TOKEN_CAP } from './constants.js';
 
 export class GameState {
   constructor(width = 20, height = 15) {
@@ -24,6 +24,12 @@ export class GameState {
     this.revealTokens = {
       [PLAYERS.A]: 3,
       [PLAYERS.B]: 3,
+    };
+
+    // 每步计数：用于令牌重生（每 N 步自动获得 1 个揭示令牌）
+    this.playerStepCounts = {
+      [PLAYERS.A]: 0,
+      [PLAYERS.B]: 0,
     };
 
     this.revealedRules = [];
@@ -141,6 +147,32 @@ export class GameState {
     return false;
   }
 
+  /**
+   * 增加揭示令牌（上限 REVEAL_TOKEN_CAP）
+   * @returns {boolean} 是否成功增加（未达到上限）
+   */
+  addRevealToken(player) {
+    if (this.revealTokens[player] >= REVEAL_TOKEN_CAP) {
+      return false; // 已达上限
+    }
+    this.revealTokens[player]++;
+    return true;
+  }
+
+  /**
+   * 记录玩家一步行动，并在达到间隔时自动奖励揭示令牌
+   * @returns {{ earned: boolean, total: number }} 是否获得新令牌及当前总数
+   */
+  stepAndCheckTokenReward(player) {
+    this.playerStepCounts[player]++;
+    const count = this.playerStepCounts[player];
+    if (count > 0 && count % REVEAL_TOKEN_INTERVAL === 0) {
+      const earned = this.addRevealToken(player);
+      return { earned, total: this.revealTokens[player], step: count };
+    }
+    return { earned: false, total: this.revealTokens[player], step: count };
+  }
+
   revealRule(player, x, y) {
     const cell = this.grid.cells[y][x];
     if (!cell || !cell.rules || cell.rules.length === 0) return null;
@@ -186,6 +218,7 @@ export class GameState {
       [PLAYERS.B]: { ...this.playerRules[PLAYERS.B] },
     };
     copy.revealTokens = { ...this.revealTokens };
+    copy.playerStepCounts = { ...this.playerStepCounts };
     copy.revealedRules = [...this.revealedRules];
     copy.playerPath = {
       [PLAYERS.A]: this.playerPath[PLAYERS.A].map(p => ({ ...p })),

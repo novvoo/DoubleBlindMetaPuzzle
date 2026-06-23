@@ -349,6 +349,7 @@ export class Game {
     this.state.setPlayerRules(PLAYERS.B, rulesForB);
 
     this.state.revealTokens = { [PLAYERS.A]: 3, [PLAYERS.B]: 3 };
+    this.state.playerStepCounts = { [PLAYERS.A]: 0, [PLAYERS.B]: 0 };
     this.state.revealedRules = [];
     this.state.playerPath = { [PLAYERS.A]: [], [PLAYERS.B]: [] };
 
@@ -538,6 +539,15 @@ export class Game {
   }
 
   _advanceTurn(player) {
+    // 令牌重生：该玩家每走 N 步自动获得 1 个揭示令牌
+    const reward = this.state.stepAndCheckTokenReward(player);
+    if (reward.earned) {
+      this.log.add(
+        `🎫 ${PLAYER_NAMES[player]} 走了 ${reward.step} 步，获得 1 个揭示令牌！(共 ${reward.total} 个)`,
+        'reveal'
+      );
+    }
+
     this.movesThisTurn++;
     if (this.movesThisTurn >= this.maxMovesPerTurn) {
       this.movesThisTurn = 0;
@@ -558,8 +568,10 @@ export class Game {
 
     const tokensA = this.reveal.getRevealTokenCount(PLAYERS.A);
     const tokensB = this.reveal.getRevealTokenCount(PLAYERS.B);
-    document.getElementById('player-a-name').textContent = `玩家A (揭示: ${tokensA})`;
-    document.getElementById('player-b-name').textContent = `玩家B (揭示: ${tokensB})`;
+    const stepsA = this.state.playerStepCounts[PLAYERS.A] || 0;
+    const stepsB = this.state.playerStepCounts[PLAYERS.B] || 0;
+    document.getElementById('player-a-name').textContent = `玩家A (令牌: ${tokensA} | 步数: ${stepsA})`;
+    document.getElementById('player-b-name').textContent = `玩家B (令牌: ${tokensB} | 步数: ${stepsB})`;
 
     // Highlight active player's board
     const wrapperA = document.getElementById('board-wrapper-a');
