@@ -43,7 +43,7 @@ export class Game {
 
     // AI 模式下旗帜位置变化计数器
     this._aiFlagMoveCounter = 0;
-    this._flagMoveInterval = 1;
+    this._flagMoveInterval = 5;
   }
 
   start() {
@@ -82,7 +82,7 @@ export class Game {
 
     this.log.add('🎮 欢迎来到【双盲元谜题 · 推块谜题】 — 同一棋盘，两套规则认知', 'system');
     this.log.add('💡 鼠标悬停棋盘 -> 另一棋盘同坐标高亮联动', 'system');
-    this.log.add('🚩 AI 模式下，旗帜每步更换位置！', 'system');
+    this.log.add('🚩 AI 模式下，旗帜每5步更换位置！', 'system');
   }
 
   // ===== AI 自动对战 =====
@@ -367,7 +367,7 @@ export class Game {
     this._updateConsensusPanel();
 
     this.log.add(`🎮 双盲元谜题 · ${level.name}`, 'system');
-    if (this.autoPlay) this.log.add('🚩 旗帜每步随机更换位置', 'system');
+    if (this.autoPlay) this.log.add('🚩 旗帜每5步随机更换位置', 'system');
     this.log.add(`🎲 先手: ${PLAYER_NAMES[this.turn]}`, 'system');
   }
 
@@ -638,7 +638,7 @@ export class Game {
     this.log.add('🔄 重新挑战推块谜题', 'system');
     this.log.add('💡 同一棋盘，不同规则认知 —— 鼠标悬停看联动', 'system');
     if (this.autoPlay || wasAutoPlay) {
-      this.log.add('🚩 AI 模式下，旗帜每步更换位置', 'system');
+      this.log.add('🚩 AI 模式下，旗帜每5步更换位置', 'system');
     }
     if (wasAutoPlay) {
       setTimeout(() => this.startAutoPlay(this.autoPlaySpeed), 300);
