@@ -84,12 +84,17 @@ export class GameState {
   }
 
   recomputeVisibility(player) {
-    // 先清空该玩家所有的 revealedTo
+    // 收集旗帜位置——旗帜不受 3 步记忆遗忘影响，始终对双方可见
+    const flagCells = [];
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
         const cell = this.grid.cells[y][x];
         if (cell.revealedTo) {
           cell.revealedTo = cell.revealedTo.filter(p => p !== player);
+        }
+        // 记住旗帜格，后面统一恢复可见
+        if (cell.entities && cell.entities.some(e => e.type === 'flag')) {
+          flagCells.push({ x, y });
         }
       }
     }
@@ -102,6 +107,10 @@ export class GameState {
           this.revealTo(player, ax, ay);
         }
       }
+    }
+    // 旗帜始终可见
+    for (const { x, y } of flagCells) {
+      this.revealTo(player, x, y);
     }
   }
 

@@ -85,6 +85,9 @@ export class BoardRenderer {
       selfHere = selfPos && selfPos.x === x && selfPos.y === y;
     }
 
+    const cellObj = this.state.grid.cells[y][x];
+    const isWall = cellObj.terrain === 'wall';
+
     // Use perspective if set, otherwise show combined view
     let isVisible;
     if (this.perspective === PLAYERS.A) {
@@ -94,6 +97,22 @@ export class BoardRenderer {
     } else {
       isVisible = this.state.isRevealedTo(PLAYERS.A, x, y)
                || this.state.isRevealedTo(PLAYERS.B, x, y);
+    }
+
+    // 墙壁始终显示（即使未揭示），但实体仍受迷雾控制
+    if (!isVisible && isWall) {
+      cell.className = 'cell fog wall-static';
+      let html = '<span class="terrain-icon terrain-icon-muted">🧱</span>';
+      // 墙上若对方在此，显示低透明度鬼影
+      if (opponentHere) {
+        const ghostIcon = opponent === PLAYERS.B ? '🅱' : '🅰';
+        const ghostClass = opponent === PLAYERS.B ? 'ghost-b-icon' : 'ghost-a-icon';
+        html += `<span class="${ghostClass}">${ghostIcon}</span>`;
+        cell.classList.add('has-ghost');
+      }
+      cell.innerHTML = html;
+      cell.title = '墙壁（未探索）';
+      return;
     }
 
     if (!isVisible) {
@@ -112,12 +131,11 @@ export class BoardRenderer {
       return;
     }
 
-    const cellObj = this.state.grid.cells[y][x];
     const entities = cellObj.entities || [];
 
     cell.className = 'cell revealed';
 
-    if (cellObj.terrain === 'wall') {
+    if (isWall) {
       cell.classList.add('wall');
     } else {
       cell.classList.add('floor');
@@ -170,7 +188,7 @@ export class BoardRenderer {
 
     let tooltipParts = [];
     if (cellObj.terrain) {
-      tooltipParts.push(cellObj.terrain === 'wall' ? '墙壁' : '地板');
+      tooltipParts.push(isWall ? '墙壁' : '地板');
     }
 
     // 去重：同一格不留两个 A 或两个 B
@@ -201,7 +219,7 @@ export class BoardRenderer {
 
     let html = '';
 
-    if (cellObj.terrain === 'wall') {
+    if (isWall) {
       html += '<span class="terrain-icon">🧱</span>';
     }
 

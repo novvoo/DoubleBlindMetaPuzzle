@@ -284,8 +284,9 @@
     }
 
     .cell.wall {
-      background: #3a3026;
-      border: 1px solid rgba(255,255,255,0.04);
+      background: #5c4033;
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: inset 0 0 8px rgba(0,0,0,0.4);
     }
 
     .cell.visible-A {
@@ -376,6 +377,21 @@
     .cell.fog.has-ghost {
       background: rgba(26, 21, 18, 0.5);
       border: 1px dashed rgba(255,255,255,0.06);
+    }
+
+    /* 未探索墙壁：始终显示但以暗雾呈现 */
+    .cell.fog.wall-static {
+      background: rgba(26, 21, 18, 0.55);
+      border: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .cell.fog.wall-static.has-ghost {
+      border: 1px dashed rgba(255,255,255,0.06);
+    }
+
+    .terrain-icon-muted {
+      opacity: 0.25;
+      font-size: 14px;
     }
 
     .cell .rule-text {
@@ -916,49 +932,48 @@
       color: var(--accent-a);
     }
 
-    /* ===== 通关内联提示 (不弹窗) ===== */
+    /* ===== 通关提示胶囊 - 右下角浮动 ===== */
     #win-toast {
       display: none;
       position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 100;
+      bottom: 28px;
+      right: 28px;
+      z-index: 200;
       pointer-events: none;
     }
 
     #win-toast.active {
-      display: flex;
+      display: block;
     }
 
     .win-toast-inner {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 10px 28px;
-      background: rgba(34, 27, 21, 0.85);
-      border: 1px solid rgba(212, 160, 48, 0.2);
+      gap: 12px;
+      padding: 14px 32px;
+      background: rgba(34, 27, 21, 0.92);
+      border: 1.5px solid var(--accent-gold);
       border-radius: var(--radius-capsule);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      box-shadow: 0 4px 20px rgba(212, 160, 48, 0.1);
-      animation: toastIn 0.4s ease;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 6px 30px rgba(212, 160, 48, 0.25), 0 0 60px rgba(212, 160, 48, 0.1);
+      animation: toastSlideIn 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
     }
 
-    @keyframes toastIn {
-      from { opacity: 0; transform: translateY(-12px); }
-      to { opacity: 1; transform: translateY(0); }
+    @keyframes toastSlideIn {
+      from { opacity: 0; transform: translateX(60px) scale(0.85); }
+      to { opacity: 1; transform: translateX(0) scale(1); }
     }
 
     .win-toast-icon {
-      font-size: 1.6rem;
+      font-size: 2rem;
     }
 
     .win-toast-text {
-      font-size: 0.85rem;
-      font-weight: 600;
+      font-size: 1.05rem;
+      font-weight: 700;
       color: var(--accent-gold);
-      letter-spacing: 0.03em;
+      letter-spacing: 0.04em;
     }
 
     #level-select {
