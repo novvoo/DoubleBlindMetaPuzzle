@@ -1,0 +1,14 @@
+{
+  "name": "double-blind-meta-puzzle",
+  "version": "1.0.0",
+  "description": "双盲元谜题 - 工程化逻辑推理小游戏",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}

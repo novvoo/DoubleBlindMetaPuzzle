@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>双盲元谜题 - Double Blind Meta Puzzle</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg-primary: #181310;
+      --bg-secondary: #221b15;
+      --bg-tertiary: #2c231a;
+      --text-primary: #e5d8c4;
+      --text-secondary: #9a8c78;
+      --text-muted: #6b5e4c;
+      --accent-a: #c97a4b;
+      --accent-b: #7a9b6b;
+      --accent-gold: #d4a030;
+      --accent-purple: #b8955c;
+      --border-color: #352c22;
+      --border-soft: rgba(255,255,255,0.05);
+    --cell-size: 34px;
+    --cell-gap: 2px;
+      --fog-color: #1a1512;
+      --revealed-color: #261f18;
+      --wall-color: #3a3026;
+      --floor-color: #261f18;
+
+      /* 胶囊设计变量 */
+      --radius-sm: 10px;
+      --radius-md: 16px;
+      --radius-lg: 24px;
+      --radius-capsule: 50px;
+      --shadow-card: 0 2px 12px rgba(0,0,0,0.25);
+      --shadow-soft: 0 1px 6px rgba(0,0,0,0.18);
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    #app {
+      width: 100%;
+      max-width: 1400px;
+      padding: 20px;
+    }
+
+    .game-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .game-header h1 {
+      font-size: 2.4rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-a), var(--accent-purple), var(--accent-b));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 4px;
+    }
+
+    .game-header .subtitle {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+    }
+
+    .game-layout {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    .left-panel {
+      flex: 0 0 200px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .panel-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-lg);
+      padding: 14px 12px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .panel-card h3 {
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .player-status {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .player-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius-capsule);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-soft);
+    }
+
+    .player-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .player-dot.player-a {
+      background: var(--accent-a);
+      box-shadow: 0 0 8px var(--accent-a);
+    }
+
+    .player-dot.player-b {
+      background: var(--accent-b);
+      box-shadow: 0 0 8px var(--accent-b);
+    }
+
+    .player-info {
+      font-size: 0.82rem;
+      color: var(--text-primary);
+    }
+
+    .player-info .player-name {
+      font-weight: 600;
+    }
+
+    .player-info .player-pos {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .key-bindings {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .key-group {
+      padding: 4px 0;
+    }
+
+    .key-group-title {
+      font-weight: 600;
+      font-size: 0.76rem;
+      margin-bottom: 4px;
+    }
+
+    .key-group-title.player-a-title {
+      color: var(--accent-a);
+    }
+
+    .key-group-title.player-b-title {
+      color: var(--accent-b);
+    }
+
+    .key-row {
+      display: flex;
+      gap: 8px;
+      font-size: 0.74rem;
+      padding: 2px 0;
+      align-items: center;
+    }
+
+    .key-desc {
+      color: var(--text-muted);
+    }
+
+    .key-tag {
+      display: inline-block;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-capsule);
+      padding: 3px 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.72rem;
+      min-width: 24px;
+      text-align: center;
+      color: var(--text-primary);
+      letter-spacing: 0.03em;
+    }
+
+    .key-desc {
+      color: var(--text-secondary);
+    }
+
+    .legend-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+
+    .legend-icon {
+      font-size: 1.1rem;
+      width: 20px;
+      text-align: center;
+    }
+
+    .center-panel {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #board-container {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+      box-shadow: var(--shadow-card);
+    }
+
+    .board-grid {
+      display: grid;
+      gap: var(--cell-gap);
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .cell {
+      width: var(--cell-size);
+      height: var(--cell-size);
+      border-radius: 5px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      transition: all 0.2s ease;
+      overflow: hidden;
+    }
+
+    .cell.fog {
+      background: var(--fog-color);
+      border: 1px solid rgba(0,0,0,0.3);
+    }
+
+    .cell.revealed {
+      background: var(--revealed-color);
+    }
+
+    .cell.floor {
+      background: var(--floor-color);
+    }
+
+    .cell.wall {
+      background: #3a3026;
+      border: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .cell.visible-A {
+      border: 2px solid var(--accent-a);
+    }
+
+    .cell.visible-B {
+      border: 2px solid var(--accent-b);
+    }
+
+    .cell.visible-both {
+      border: 2px solid var(--accent-purple);
+    }
+
+    .cell.rule-hidden {
+      background: rgba(184, 149, 92, 0.12);
+      border: 2px dashed rgba(184, 149, 92, 0.35);
+    }
+
+    .cell.rule-revealed {
+      background: rgba(184, 149, 92, 0.18);
+      border: 2px solid var(--accent-gold);
+      animation: ruleGlow 2.5s ease-in-out infinite;
+    }
+
+    @keyframes ruleGlow {
+      0%, 100% { box-shadow: 0 0 6px rgba(212, 160, 48, 0.3); }
+      50% { box-shadow: 0 0 16px rgba(212, 160, 48, 0.5); }
+    }
+
+    .cell .entity-icon {
+      z-index: 2;
+      pointer-events: none;
+      font-size: 13px;
+    }
+
+    .cell .terrain-icon {
+      z-index: 1;
+      position: absolute;
+      opacity: 0.5;
+      font-size: 11px;
+    }
+
+    .cell .player-a-icon {
+      color: var(--accent-a);
+      font-size: 15px;
+      text-shadow: 0 0 6px var(--accent-a);
+      z-index: 3;
+    }
+
+    .cell .player-b-icon {
+      color: var(--accent-b);
+      font-size: 15px;
+      text-shadow: 0 0 6px var(--accent-b);
+      z-index: 3;
+    }
+
+    /* 对方低透明度鬼影 */
+    .cell .ghost-a-icon {
+      color: var(--accent-a);
+      font-size: 12px;
+      opacity: 0.35;
+      z-index: 2;
+      text-shadow: 0 0 3px rgba(201, 122, 75, 0.3);
+    }
+
+    .cell .ghost-b-icon {
+      color: var(--accent-b);
+      font-size: 12px;
+      opacity: 0.35;
+      z-index: 2;
+      text-shadow: 0 0 3px rgba(122, 155, 107, 0.3);
+    }
+
+    /* 双方同格缩小比例 */
+    .cell.both-players .player-a-icon,
+    .cell.both-players .player-b-icon {
+      font-size: 11px;
+    }
+
+    .cell.both-players .ghost-a-icon,
+    .cell.both-players .ghost-b-icon {
+      font-size: 10px;
+      opacity: 0.25;
+    }
+
+    /* 迷雾格上有鬼影 */
+    .cell.fog.has-ghost {
+      background: rgba(26, 21, 18, 0.5);
+      border: 1px dashed rgba(255,255,255,0.06);
+    }
+
+    .cell .rule-text {
+      position: absolute;
+      bottom: 1px;
+      left: 1px;
+      right: 1px;
+      font-size: 6px;
+      font-family: 'Courier New', monospace;
+      color: var(--accent-gold);
+      background: rgba(0, 0, 0, 0.7);
+      padding: 1px 2px;
+      border-radius: 2px;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .cell .rule-placeholder {
+      position: absolute;
+      font-size: 16px;
+      color: var(--accent-purple);
+      opacity: 0.6;
+    }
+
+    #level-info {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      font-size: 0.85rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    #level-info .level-name {
+      font-weight: 600;
+      color: var(--accent-gold);
+      font-size: 1rem;
+    }
+
+    #level-info .level-desc {
+      color: var(--text-muted);
+      font-size: 0.74rem;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    #turn-indicator {
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      padding: 6px 20px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-capsule);
+      min-width: 100px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--border-soft);
+    }
+
+    #turn-indicator .turn-num {
+      font-weight: 700;
+      color: var(--text-primary);
+      font-size: 1rem;
+    }
+
+    .right-panel {
+      flex: 0 0 200px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    #message-log {
+      max-height: 350px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.78rem;
+    }
+
+    #message-log::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    #message-log::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #message-log::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 2px;
+    }
+
+    .log-entry {
+      padding: 5px 10px;
+      border-radius: var(--radius-capsule);
+      border-left: 2px solid transparent;
+      animation: fadeIn 0.2s ease;
+      font-size: 0.74rem;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .log-entry.system {
+      border-left-color: var(--text-muted);
+      color: var(--text-muted);
+    }
+
+    .log-entry.reveal {
+      border-left-color: var(--accent-gold);
+      color: var(--accent-gold);
+      font-weight: 600;
+      background: rgba(212, 160, 48, 0.06);
+    }
+
+    .log-entry.win {
+      border-left-color: #44ff44;
+      color: #44ff44;
+      font-weight: 700;
+      background: rgba(68, 255, 68, 0.06);
+    }
+
+    .log-entry.warning {
+      border-left-color: #ff8844;
+      color: #ff8844;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 18px;
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-capsule);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-family: inherit;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      text-align: center;
+      letter-spacing: 0.02em;
+    }
+
+    .btn:hover {
+      background: #3a2e22;
+      border-color: rgba(255,255,255,0.10);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn.primary {
+      background: var(--accent-a);
+      border-color: var(--accent-a);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .btn.primary:hover {
+      background: #b86e3e;
+    }
+
+    .btn.secondary {
+      background: var(--accent-b);
+      border-color: var(--accent-b);
+      color: #1a1510;
+      font-weight: 600;
+    }
+
+    .btn.secondary:hover {
+      background: #6b8a5d;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* ===== 开始界面（内联到游戏布局） ===== */
+    #start-section {
+      text-align: center;
+      padding: 40px 20px 50px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 28px;
+      background: radial-gradient(ellipse at center, #2c2018 0%, #1a1510 70%);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-soft);
+      margin-bottom: 20px;
+    }
+
+    #start-section.hidden {
+      display: none;
+    }
+
+    /* 游戏布局初始隐藏，通过 .visible 类显示 */
+    #game-layout:not(.visible) {
+      display: none;
+    }
+
+    .start-logo {
+      text-align: center;
+    }
+
+    .start-logo h1 {
+      font-size: 3.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-a), var(--accent-purple), var(--accent-b));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+
+    .start-logo .subtitle {
+      font-size: 1rem;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+    }
+
+    .start-preview {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+    }
+
+    .start-preview .mini-icon {
+      font-size: 2rem;
+    }
+
+    .btn-start {
+      padding: 18px 64px;
+      font-size: 1.5rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--accent-a) 0%, var(--accent-purple) 50%, var(--accent-b) 100%);
+      color: #fff;
+      cursor: pointer;
+      letter-spacing: 0.1em;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 24px rgba(184, 149, 92, 0.35);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-start:hover {
+      transform: scale(1.06);
+      box-shadow: 0 8px 40px rgba(184, 149, 92, 0.5);
+    }
+
+    .btn-start:active {
+      transform: scale(0.97);
+    }
+
+    .btn-start::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg,
+        rgba(255,255,255,0.15) 0%,
+        transparent 50%,
+        rgba(255,255,255,0.1) 100%);
+      pointer-events: none;
+    }
+
+    .start-features {
+      display: flex;
+      gap: 24px;
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .start-feature-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 18px;
+      background: rgba(255,255,255,0.03);
+      border-radius: var(--radius-capsule);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    /* ===== 双宫格布局 ===== */
+    .dual-boards {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .board-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .board-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 6px 16px;
+      border-radius: 20px;
+      letter-spacing: 0.05em;
+    }
+
+    .board-label.player-a-label {
+      background: rgba(201, 122, 75, 0.15);
+      color: var(--accent-a);
+      border: 1px solid rgba(201, 122, 75, 0.3);
+    }
+
+    .board-label.player-b-label {
+      background: rgba(122, 155, 107, 0.15);
+      color: var(--accent-b);
+      border: 1px solid rgba(122, 155, 107, 0.3);
+    }
+
+    .board-container {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-lg);
+      padding: 8px;
+      box-shadow: var(--shadow-card);
+      transition: border-color 0.35s ease, box-shadow 0.35s ease;
+    }
+
+    .board-wrapper.active-turn .board-container {
+      border-color: var(--accent-gold);
+      box-shadow: 0 0 24px rgba(212, 160, 48, 0.18), var(--shadow-card);
+    }
+
+    /* ===== 棋盘连接器 & 共识面板 (胶囊 + 动画脉冲) ===== */
+    .board-connector {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 0;
+      min-width: 52px;
+      position: relative;
+    }
+
+    /* 主连接线 (含流动粒子) */
+    .connector-line {
+      width: 100%;
+      height: 2px;
+      border-radius: 1px;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--accent-a) 20%,
+        var(--accent-purple) 50%,
+        var(--accent-b) 80%,
+        transparent 100%
+      );
+      opacity: 0.5;
+      position: relative;
+    }
+
+    /* 脉冲粒子沿连接线流动 */
+    .connector-line::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-gold);
+      transform: translateY(-50%);
+      animation: pulseTravel 2.5s ease-in-out infinite;
+      box-shadow: 0 0 8px var(--accent-gold), 0 0 16px var(--accent-gold);
+    }
+
+    .connector-line::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      right: 0;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--accent-purple);
+      transform: translateY(-50%);
+      animation: pulseTravel 2.5s ease-in-out 1.25s infinite;
+      box-shadow: 0 0 6px var(--accent-purple), 0 0 12px var(--accent-purple);
+    }
+
+    @keyframes pulseTravel {
+      0%   { left: 0%; opacity: 0; }
+      15%  { opacity: 1; }
+      45%  { left: 50%; opacity: 1; }
+      85%  { opacity: 1; }
+      100% { left: 100%; opacity: 0; }
+    }
+
+    /* 连接标签 — 胶囊芯片 */
+    .connector-label {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      letter-spacing: 0.12em;
+      white-space: nowrap;
+      padding: 4px 14px;
+      border-radius: var(--radius-capsule);
+      background: rgba(184, 149, 92, 0.08);
+      border: 1px solid rgba(184, 149, 92, 0.15);
+    }
+
+    /* 共识面板 — 胶囊卡片 */
+    .consensus-panel {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-md);
+      width: 100%;
+      min-width: 120px;
+      max-width: 160px;
+      overflow: hidden;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .consensus-header {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-align: center;
+      padding: 8px 10px;
+      color: var(--accent-gold);
+      border-bottom: 1px solid var(--border-soft);
+      letter-spacing: 0.04em;
+      background: rgba(212, 160, 48, 0.05);
+    }
+
+    .consensus-entries {
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .consensus-entries::-webkit-scrollbar {
+      width: 4px;
+    }
+    .consensus-entries::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .consensus-entries::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 2px;
+    }
+
+    .consensus-empty {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 14px 0;
+      opacity: 0.5;
+    }
+
+    .consensus-entry {
+      font-size: 0.7rem;
+      padding: 6px 10px;
+      margin: 3px 0;
+      border-radius: var(--radius-capsule);
+      border: 1px solid rgba(184, 149, 92, 0.12);
+      background: rgba(184, 149, 92, 0.06);
+      animation: fadeIn 0.25s ease;
+      color: var(--text-primary);
+    }
+
+    .consensus-entry .entry-player {
+      font-size: 0.62rem;
+      color: var(--text-muted);
+    }
+    .consensus-entry .entry-rule {
+      font-weight: 600;
+      color: var(--accent-gold);
+    }
+
+    /* ===== 跨棋盘悬停联动 (降噪版) ===== */
+    .cell.cross-highlight {
+      box-shadow: 0 0 10px rgba(184, 149, 92, 0.45), inset 0 0 0 1px rgba(184, 149, 92, 0.25);
+      z-index: 10;
+      position: relative;
+    }
+
+    /* ===== 速度控制 (胶囊) ===== */
+    .speed-label {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      align-self: center;
+    }
+
+    .speed-btn {
+      padding: 5px 14px;
+      font-size: 0.74rem;
+      transition: all 0.2s ease;
+      border-radius: var(--radius-capsule);
+    }
+
+    .speed-btn.active {
+      background: rgba(184, 149, 92, 0.2);
+      border-color: var(--accent-purple);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    #btn-toggle-ai {
+      background: rgba(122, 155, 107, 0.08);
+      border-color: rgba(122, 155, 107, 0.25);
+      color: var(--accent-b);
+    }
+
+    #btn-toggle-ai:hover {
+      background: rgba(122, 155, 107, 0.15);
+    }
+
+    #btn-toggle-ai.paused {
+      background: rgba(201, 122, 75, 0.08);
+      border-color: rgba(201, 122, 75, 0.25);
+      color: var(--accent-a);
+    }
+
+    /* ===== 通关内联提示 (不弹窗) ===== */
+    #win-toast {
+      display: none;
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    #win-toast.active {
+      display: flex;
+    }
+
+    .win-toast-inner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 28px;
+      background: rgba(34, 27, 21, 0.85);
+      border: 1px solid rgba(212, 160, 48, 0.2);
+      border-radius: var(--radius-capsule);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      box-shadow: 0 4px 20px rgba(212, 160, 48, 0.1);
+      animation: toastIn 0.4s ease;
+    }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(-12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .win-toast-icon {
+      font-size: 1.6rem;
+    }
+
+    .win-toast-text {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent-gold);
+      letter-spacing: 0.03em;
+    }
+
+    #level-select {
+      padding: 8px 16px;
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-capsule);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font-size: 0.82rem;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    #level-select:focus {
+      outline: none;
+      border-color: var(--accent-b);
+    }
+
+    option {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    @media (max-width: 960px) {
+      .game-layout {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .left-panel,
+      .right-panel {
+        flex: 1 1 auto;
+        width: 100%;
+        max-width: 500px;
+      }
+
+      .dual-boards {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .board-connector {
+        flex-direction: row;
+        padding: 8px 0;
+        gap: 8px;
+        min-width: auto;
+        width: 100%;
+      }
+
+      .connector-line {
+        flex: 1;
+        min-width: 30px;
+      }
+
+      .connector-label {
+        white-space: nowrap;
+        font-size: 0.6rem;
+      }
+
+      .consensus-panel {
+        min-width: 160px;
+        max-width: 320px;
+      }
+
+      .start-logo h1 {
+        font-size: 2.2rem;
+      }
+
+      .btn-start {
+        padding: 14px 48px;
+        font-size: 1.2rem;
+      }
+
+      :root {
+        --cell-size: 28px;
+      }
+    }
+
+    @media (max-width: 600px) {
+      :root {
+        --cell-size: 22px;
+      }
+
+      .game-header h1 {
+        font-size: 1.5rem;
+      }
+
+      .start-logo h1 {
+        font-size: 1.6rem;
+      }
+
+      .btn-start {
+        padding: 12px 36px;
+        font-size: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header class="game-header">
+      <h1>🎭 双盲元谜题</h1>
+      <p class="subtitle">Double Blind Meta Puzzle · AI 合作解谜 · 你看得见的规则，对队友来说是乱码</p>
+    </header>
+
+    <!-- 开始界面（内联到游戏布局中） -->
+    <div id="start-section">
+      <div class="start-logo">
+        <h1>🎭 双盲元谜题</h1>
+        <p class="subtitle">Double Blind Meta Puzzle</p>
+      </div>
+      <div class="start-preview">
+        <span class="mini-icon">🔴</span>
+        <span>同一棋盘，两个视角，完全不同的规则世界</span>
+        <span class="mini-icon">🔵</span>
+      </div>
+      <button class="btn-start" id="btn-start">⚡ 开 始 游 戏</button>
+      <div class="start-features">
+        <div class="start-feature-item">🧠 主观规则</div>
+        <div class="start-feature-item">👁️ 双视角迷雾</div>
+        <div class="start-feature-item">🔄 轮流行动</div>
+        <div class="start-feature-item">🔍 揭示机制</div>
+        <div class="start-feature-item">🚩 动态旗帜</div>
+      </div>
+    </div>
+
+    <div class="game-layout" id="game-layout">
+      <aside class="left-panel">
+        <div class="panel-card">
+          <h3>🎮 玩家状态</h3>
+          <div class="player-status">
+            <div class="player-item">
+              <div class="player-dot player-a"></div>
+              <div class="player-info">
+                <div class="player-name" id="player-a-name">玩家A</div>
+                <div class="player-pos" id="player-a-pos">位置: —</div>
+              </div>
+            </div>
+            <div class="player-item">
+              <div class="player-dot player-b"></div>
+              <div class="player-info">
+                <div class="player-name" id="player-b-name">玩家B</div>
+                <div class="player-pos" id="player-b-pos">位置: —</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <h3>⌨️ 键位说明</h3>
+          <div class="key-bindings">
+            <div class="key-group">
+              <div class="key-group-title player-a-title">🔴 玩家A</div>
+              <div class="key-row">
+                <span class="key-tag">W</span><span class="key-tag">A</span><span class="key-tag">S</span><span class="key-tag">D</span>
+                <span class="key-desc">移动</span>
+              </div>
+              <div class="key-row">
+                <span class="key-tag">Q</span> <span class="key-desc">揭示规则</span>
+                <span class="key-tag">E</span> <span class="key-desc">等待</span>
+              </div>
+            </div>
+            <div class="key-group">
+              <div class="key-group-title player-b-title">🔵 玩家B</div>
+              <div class="key-row">
+                <span class="key-tag">I</span><span class="key-tag">J</span><span class="key-tag">K</span><span class="key-tag">L</span>
+                <span class="key-desc">移动</span>
+              </div>
+              <div class="key-row">
+                <span class="key-tag">U</span> <span class="key-desc">揭示规则</span>
+                <span class="key-tag">O</span> <span class="key-desc">等待</span>
+              </div>
+            </div>
+            <div class="key-group">
+              <div class="key-group-title">全局</div>
+              <div class="key-row">
+                <span class="key-tag">Ctrl</span>+<span class="key-tag">Z</span>
+                <span class="key-desc">撤销</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <h3>📋 图例</h3>
+          <div class="legend-grid">
+            <div class="legend-item"><span class="legend-icon">⬛</span> 迷雾</div>
+            <div class="legend-item"><span class="legend-icon">🧱</span> 墙壁</div>
+            <div class="legend-item"><span class="legend-icon" style="color:var(--accent-a)">🅰</span> 玩家A</div>
+            <div class="legend-item"><span class="legend-icon" style="color:var(--accent-b)">🅱</span> 玩家B</div>
+            <div class="legend-item"><span class="legend-icon">🐱</span> 凯凯 (A可推)</div>
+            <div class="legend-item"><span class="legend-icon">🐑</span> 巴巴 (B可推)</div>
+            <div class="legend-item"><span class="legend-icon">🚩</span> 旗帜</div>
+            <div class="legend-item"><span class="legend-icon">📜</span> 隐藏规则</div>
+            <div class="legend-item"><span class="legend-icon" style="color:var(--accent-purple)">?</span> 未揭示</div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="center-panel">
+        <div class="dual-boards">
+          <div class="board-wrapper" id="board-wrapper-a">
+            <div class="board-label player-a-label">🔴 玩家A 视角</div>
+            <div class="board-container">
+              <div id="board-a"></div>
+            </div>
+          </div>
+
+          <!-- 棋盘连接区：共识面板 -->
+          <div class="board-connector" id="board-connector">
+            <div class="connector-line"></div>
+            <div class="connector-label">同一棋盘 · 不同认知</div>
+            <div class="connector-line"></div>
+            <div class="consensus-panel" id="consensus-panel">
+              <div class="consensus-header">📋 已揭示规则</div>
+              <div class="consensus-entries" id="consensus-entries">
+                <div class="consensus-empty">尚未揭示任何规则</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="board-wrapper" id="board-wrapper-b">
+            <div class="board-label player-b-label">🔵 玩家B 视角</div>
+            <div class="board-container">
+              <div id="board-b"></div>
+            </div>
+          </div>
+        </div>
+        <div id="level-info">
+          <span class="level-name" id="level-name">—</span>
+          <span class="level-desc" id="level-desc"></span>
+        </div>
+        <div id="turn-indicator">
+          当前回合: <span class="turn-num" id="turn-num">A</span>
+        </div>
+
+        <div class="btn-group">
+          <select id="level-select" title="选择关卡">
+            <option value="">— 选择关卡 —</option>
+          </select>
+          <button class="btn" id="btn-reset" title="重新开始当前关卡">🔄 重置</button>
+          <button class="btn primary" id="btn-ai-start-btn" title="启动AI自动对战">🤖 AI开始</button>
+          <button class="btn" id="btn-toggle-ai" title="暂停/继续AI自动对战">⏯ AI 暂停</button>
+          <button class="btn primary" id="btn-new-game" title="返回开始界面">🆕 新游戏</button>
+          <button class="btn secondary" id="btn-next-level-ctrl" title="进入下一关" style="display:none;">▶ 下一关</button>
+        </div>
+        <div class="btn-group" id="speed-controls">
+          <span class="speed-label">速度:</span>
+          <button class="btn speed-btn" data-speed="2000">🐢 慢</button>
+          <button class="btn speed-btn active" data-speed="1200">🐇 中</button>
+          <button class="btn speed-btn" data-speed="600">🚀 快</button>
+          <button class="btn speed-btn" data-speed="200">⚡ 极速</button>
+        </div>
+      </main>
+
+      <aside class="right-panel">
+        <div class="panel-card">
+          <h3>📜 消息日志</h3>
+          <div id="message-log">
+            <div class="log-entry system">欢迎！同一棋盘，两套规则认知。揭示规则，到达旗帜！</div>
+          </div>
+          <button class="btn" id="btn-clear-log" style="margin-top:8px;width:100%;font-size:0.78rem;">清空日志</button>
+        </div>
+
+        <div class="panel-card" id="rules-panel">
+          <h3>📖 核心规则</h3>
+          <div id="rules-content" style="font-size:0.74rem;color:var(--text-muted);line-height:1.8;">
+            <p>🧠 <strong style="color:var(--text-primary)">主观规则</strong>：同一实体，两位玩家看到的属性不同</p>
+            <p>👁️ <strong style="color:var(--text-primary)">独立视野</strong>：各自只能看到周围1格，探索进度独立</p>
+            <p>🔄 <strong style="color:var(--text-primary)">轮流行动</strong>：每回合只能走一步，交替操作</p>
+            <p>🔍 <strong style="color:var(--text-primary)">揭示令牌</strong>：每位玩家有3次机会公开当前位置的隐藏规则</p>
+            <p>⬅️ <strong style="color:var(--text-primary)">主观推块</strong>：A 只能推 🐱凯凯，B 只能推 🐑巴巴</p>
+            <p>🚩 <strong style="color:var(--text-primary)">胜利</strong>：看到 FLAG IS WIN 的玩家踩上旗帜即获胜</p>
+            <p style="color:var(--accent-gold);margin-top:8px;font-size:0.7rem;">💡 悬浮联动：鼠标悬停 -> 另一棋盘同坐标高亮</p>
+            <p style="color:var(--accent-gold);font-size:0.7rem;">🚩 AI 模式下，旗帜每一步随机换位</p>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <div id="win-toast">
+      <div class="win-toast-inner">
+        <span class="win-toast-icon">🏆</span>
+        <span class="win-toast-text" id="win-toast-text"></span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

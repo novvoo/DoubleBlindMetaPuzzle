@@ -1,0 +1,290 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  min-height: 100vh;
+}
+
+#app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 12px 20px;
+}
+
+header {
+  text-align: center;
+  padding: 8px 0 14px;
+}
+
+header h1 {
+  font-size: 1.8rem;
+  color: #f0d060;
+  text-shadow: 0 0 12px rgba(240, 208, 96, 0.25);
+  margin-bottom: 10px;
+}
+
+.game-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.game-controls select {
+  padding: 6px 12px;
+  background: #16213e;
+  color: #e0e0e0;
+  border: 1px solid #3a3a5e;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.game-controls button {
+  padding: 6px 14px;
+  background: #2d3a5e;
+  color: #e0e0e0;
+  border: 1px solid #4a4a7e;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.game-controls button:hover {
+  background: #3d4a7e;
+}
+
+.game-controls button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+#reveal-tokens {
+  background: #16213e;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid #3a3a5e;
+  font-weight: bold;
+  color: #a0d0ff;
+}
+
+/* --- Game Container --- */
+#game-container {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: center;
+  margin: 8px 0 16px;
+}
+
+.player-view {
+  flex: 1;
+  max-width: 380px;
+  background: #16213e;
+  border-radius: 12px;
+  padding: 16px;
+  border: 2px solid #2a2a4e;
+  transition: border-color 0.3s;
+}
+
+.player-view.active-turn {
+  border-color: #f0d060;
+  box-shadow: 0 0 16px rgba(240, 208, 96, 0.15);
+}
+
+.player-view h2 {
+  text-align: center;
+  font-size: 1.1rem;
+  margin-bottom: 10px;
+  color: #ccc;
+}
+
+/* --- Grid --- */
+.grid {
+  display: grid;
+  gap: 3px;
+  background: #0d0d1a;
+  padding: 6px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.grid-cell {
+  aspect-ratio: 1;
+  min-width: 48px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: #1a1a35;
+  border: 2px solid transparent;
+  position: relative;
+}
+
+.grid-cell:hover {
+  background: #22224a;
+  border-color: #5a5a8e;
+}
+
+.grid-cell.selected {
+  border-color: #f0d060;
+  box-shadow: 0 0 12px rgba(240, 208, 96, 0.4);
+  z-index: 2;
+}
+
+.grid-cell.hidden {
+  background: #0d0d22;
+  color: transparent;
+}
+
+.grid-cell.hidden::after {
+  content: '?';
+  color: #3a3a5e;
+  font-size: 1.2rem;
+}
+
+.grid-cell .cell-icon {
+  pointer-events: none;
+}
+
+.grid-cell .cell-rule-indicator {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 0.55rem;
+  color: #a0a0c0;
+}
+
+/* --- Information Panel --- */
+.info-panel {
+  background: #0d0d1a;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.info-panel .current-turn {
+  text-align: center;
+  font-weight: bold;
+  color: #f0d060;
+}
+
+/* --- Divider --- */
+.divider {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding-top: 50px;
+  min-width: 180px;
+}
+
+.divider button {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #4a3080, #2d1a5e);
+  color: #e0c0ff;
+  border: 1px solid #6a4aaa;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.divider button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #6a40b0, #4a2080);
+}
+
+.divider button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* --- Message Log --- */
+.message-log {
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #0d0d1a;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.message-log .log-entry {
+  padding: 3px 0;
+  border-bottom: 1px solid #1a1a30;
+}
+
+.message-log .log-entry.system {
+  color: #888;
+}
+
+.message-log .log-entry.reveal {
+  color: #a0d0ff;
+}
+
+.message-log .log-entry.win {
+  color: #f0d060;
+  font-weight: bold;
+}
+
+/* --- Controls Help --- */
+#controls-help {
+  text-align: center;
+  color: #666;
+  font-size: 0.8rem;
+  padding: 8px;
+}
+
+/* --- Win overlay --- */
+.win-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.win-overlay .win-dialog {
+  background: #16213e;
+  border: 3px solid #f0d060;
+  border-radius: 16px;
+  padding: 28px 40px;
+  text-align: center;
+}
+
+.win-overlay .win-dialog h2 {
+  font-size: 2rem;
+  color: #f0d060;
+  margin-bottom: 8px;
+}
+
+.win-overlay .win-dialog button {
+  margin-top: 12px;
+  padding: 8px 24px;
+  background: #f0d060;
+  color: #1a1a2e;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+}
