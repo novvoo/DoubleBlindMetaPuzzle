@@ -41,7 +41,10 @@ export class GameEngine {
     }
 
     if (moveResult.pushEntity) {
-      this._pushEntity(player, nx, ny, direction);
+      const pushOk = this._pushEntity(player, nx, ny, direction);
+      if (!pushOk) {
+        return { success: false, message: '推不动！前方有障碍物', events: [] };
+      }
     }
 
     fromCell.entities = fromCell.entities.filter(
@@ -121,6 +124,9 @@ export class GameEngine {
     let hasStop = false;
 
     for (const entity of entities) {
+      // AB 可以共存于同一格，玩家实体不作为 STOP 阻挡
+      if (entity.type === 'player_a' || entity.type === 'player_b') continue;
+
       const prop = this.state.getEntityProperty(player, entity.type);
 
       if (prop === PROPERTIES.STOP) {
@@ -157,13 +163,13 @@ export class GameEngine {
       return prop === PROPERTIES.PUSH;
     });
 
-    if (!entity) return;
+    if (!entity) return false;
 
     let pushX = x + direction.x;
     let pushY = y + direction.y;
 
     if (pushX < 0 || pushX >= this.state.width || pushY < 0 || pushY >= this.state.height) {
-      return;
+      return false;
     }
 
     const targetCell = this.state.grid.cells[pushY][pushX];
@@ -171,15 +177,17 @@ export class GameEngine {
     if (targetCell.terrain === 'wall') {
       const wallProperty = this.state.getEntityProperty(player, 'wall');
       if (wallProperty === PROPERTIES.STOP) {
-        return;
+        return false;
       }
     }
 
+    // AB 可共存，推送目标格上的玩家实体不阻挡
     const targetEntities = targetCell.entities || [];
     for (const targetEntity of targetEntities) {
+      if (targetEntity.type === 'player_a' || targetEntity.type === 'player_b') continue;
       const prop = this.state.getEntityProperty(player, targetEntity.type);
       if (prop === PROPERTIES.STOP || prop === PROPERTIES.PUSH) {
-        return;
+        return false;
       }
     }
 
@@ -193,6 +201,8 @@ export class GameEngine {
     if (entity.type === 'rule_block') {
       this._updateRulesFromBlock(entity, pushX, pushY);
     }
+
+    return true;
   }
 
   _updateRulesFromBlock(block, x, y) {

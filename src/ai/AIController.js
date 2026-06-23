@@ -219,25 +219,27 @@ export class AIController {
         if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
         if (!state.isRevealedTo(player, nx, ny)) continue;
 
-        if (this._canStepInto(player, nx, ny)) {
-          visited.add(key);
-          queue.push({
-            x: nx,
-            y: ny,
-            path: [...current.path, { x: nx, y: ny }],
-          });
-        }
+      if (this._canStepInto(player, nx, ny, d.dx, d.dy)) {
+        visited.add(key);
+        queue.push({
+          x: nx,
+          y: ny,
+          path: [...current.path, { x: nx, y: ny }],
+        });
       }
     }
-
-    return null; // 无路径
   }
+
+  return null; // 无路径
+}
 
   /**
    * 玩家能否踏入目标格（基于该玩家的规则 + 对方揭示的规则）
    * 暗雾：有令牌时可通行（会消耗令牌），无令牌时阻挡
+   * @param {number} dx - 进入方向 x（用于检查 PUSH 能否推动）
+   * @param {number} dy - 进入方向 y
    */
-  _canStepInto(player, x, y) {
+  _canStepInto(player, x, y, dx = 0, dy = 0) {
     const state = this.game.state;
     const cell = state.grid.cells[y][x];
 
@@ -256,21 +258,29 @@ export class AIController {
     if (cell.terrain === 'wall') {
       const wallProp = this._getEffectiveProperty(player, 'wall');
       if (wallProp === PROPERTIES.STOP) return false;
-      // PUSH on wall means can push through? In this game, wall is terrain, not entity
-      // Actually looking at _checkMove in GameEngine - wall with STOP blocks
-      // But wall with PUSH or other also blocks because terrain can't be pushed?
-      // Let me check engine: _checkMove checks wall property === STOP → blocked
-      // If wall property is not STOP, it falls through... so WALL IS PUSH means wall doesn't block
-      // Actually wait, in the engine: if wallProperty === STOP → can't move. Otherwise it continues.
-      // So WALL IS PUSH effectively means wall doesn't block, but push onto wall doesn't work
-      // because terrain isn't an entity you can push.
-      // Let me just check if the property is STOP.
     }
 
-    // 实体检查
+    // 实体检查（AB 可共存，跳过玩家实体）
     for (const entity of entities) {
+      if (entity.type === 'player_a' || entity.type === 'player_b') continue;
       const prop = this._getEffectiveProperty(player, entity.type);
       if (prop === PROPERTIES.STOP) return false;
+      if (prop === PROPERTIES.PUSH) {
+        // 检查推得动：推动目标格必须可容纳该实体
+        const pushX = x + dx;
+        const pushY = y + dy;
+        if (pushX < 0 || pushX >= state.width || pushY < 0 || pushY >= state.height) return false;
+        const pushCell = state.grid.cells[pushY][pushX];
+        if (pushCell.terrain === 'wall') {
+          const wp = this._getEffectiveProperty(player, 'wall');
+          if (wp === PROPERTIES.STOP) return false;
+        }
+        for (const pe of (pushCell.entities || [])) {
+          if (pe.type === 'player_a' || pe.type === 'player_b') continue;
+          const pp = this._getEffectiveProperty(player, pe.type);
+          if (pp === PROPERTIES.STOP || pp === PROPERTIES.PUSH) return false;
+        }
+      }
     }
 
     return true;
@@ -348,7 +358,7 @@ export class AIController {
         }
 
         // If revealed and passable, continue BFS
-        if (this._canStepInto(player, nx, ny)) {
+        if (this._canStepInto(player, nx, ny, d.dx, d.dy)) {
           queue.push({ x: nx, y: ny, dist: cur.dist + 1 });
         }
       }
@@ -407,7 +417,7 @@ export class AIController {
       const ny = y + dir.y;
       if (nx >= 0 && nx < this.game.state.width &&
           ny >= 0 && ny < this.game.state.height) {
-        if (this._canStepInto(player, nx, ny)) {
+        if (this._canStepInto(player, nx, ny, dir.x, dir.y)) {
           return dir;
         }
       }
