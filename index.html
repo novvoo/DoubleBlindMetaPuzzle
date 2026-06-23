@@ -278,8 +278,14 @@
     .cell.dark-fog {
       background: linear-gradient(135deg, #2a2040 0%, #1a1525 50%, #2a2040 100%);
       border: 2px solid rgba(180, 130, 220, 0.5);
-      box-shadow: inset 0 0 12px rgba(120, 80, 200, 0.25);
+      box-shadow: inset 0 0 12px rgba(120, 80, 200, 0.25),
+                  0 0 6px rgba(100, 60, 180, 0.3);
       position: relative;
+      animation: fog-pulse 2.5s ease-in-out infinite;
+    }
+    @keyframes fog-pulse {
+      0%, 100% { box-shadow: inset 0 0 12px rgba(120, 80, 200, 0.25), 0 0 6px rgba(100, 60, 180, 0.3); }
+      50% { box-shadow: inset 0 0 16px rgba(140, 100, 220, 0.35), 0 0 10px rgba(120, 80, 200, 0.4); }
     }
     .cell.dark-fog .terrain-icon-muted {
       opacity: 0.6;
@@ -1134,41 +1140,6 @@
         </div>
 
         <div class="panel-card">
-          <h3>⌨️ 键位说明</h3>
-          <div class="key-bindings">
-            <div class="key-group">
-              <div class="key-group-title player-a-title">🔴 玩家A</div>
-              <div class="key-row">
-                <span class="key-tag">W</span><span class="key-tag">A</span><span class="key-tag">S</span><span class="key-tag">D</span>
-                <span class="key-desc">移动</span>
-              </div>
-              <div class="key-row">
-                <span class="key-tag">Q</span> <span class="key-desc">揭示规则</span>
-                <span class="key-tag">E</span> <span class="key-desc">等待</span>
-              </div>
-            </div>
-            <div class="key-group">
-              <div class="key-group-title player-b-title">🔵 玩家B</div>
-              <div class="key-row">
-                <span class="key-tag">I</span><span class="key-tag">J</span><span class="key-tag">K</span><span class="key-tag">L</span>
-                <span class="key-desc">移动</span>
-              </div>
-              <div class="key-row">
-                <span class="key-tag">U</span> <span class="key-desc">揭示规则</span>
-                <span class="key-tag">O</span> <span class="key-desc">等待</span>
-              </div>
-            </div>
-            <div class="key-group">
-              <div class="key-group-title">全局</div>
-              <div class="key-row">
-                <span class="key-tag">Ctrl</span>+<span class="key-tag">Z</span>
-                <span class="key-desc">撤销</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="panel-card">
           <h3>📋 图例</h3>
           <div class="legend-grid">
             <div class="legend-item"><span class="legend-icon">⬛</span> 迷雾</div>
@@ -1241,14 +1212,6 @@
       </main>
 
       <aside class="right-panel">
-        <div class="panel-card">
-          <h3>📜 消息日志</h3>
-          <div id="message-log">
-            <div class="log-entry system">欢迎！同一棋盘，两套规则认知。揭示规则，到达旗帜！</div>
-          </div>
-          <button class="btn" id="btn-clear-log" style="margin-top:8px;width:100%;font-size:0.78rem;">清空日志</button>
-        </div>
-
         <div class="panel-card" id="rules-panel">
           <h3>📖 核心规则</h3>
           <div id="rules-content" style="font-size:0.74rem;color:var(--text-muted);line-height:1.8;">
@@ -1259,7 +1222,7 @@
             <p>⬅️ <strong style="color:var(--text-primary)">主观推块</strong>：A 只能推 🐱凯凯，B 只能推 🐑巴巴</p>
             <p>🚩 <strong style="color:var(--text-primary)">胜利</strong>：看到 FLAG IS WIN 的玩家踩上旗帜即获胜</p>
             <p style="color:var(--accent-gold);margin-top:8px;font-size:0.7rem;">💡 悬浮联动：鼠标悬停 -> 另一棋盘同坐标高亮</p>
-            <p style="color:var(--accent-gold);font-size:0.7rem;">🚩 AI 模式下，旗帜每5步随机换位</p>
+            <p style="color:var(--accent-gold);font-size:0.7rem;">🚩 AI 模式下，旗帜每10步随机换位</p>
           </div>
         </div>
       </aside>

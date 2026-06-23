@@ -8,6 +8,7 @@ export class MessageLog {
   }
 
   add(message, type = 'system') {
+    if (!this.container) return;
     const entry = document.createElement('div');
     entry.className = `log-entry ${type}`;
     const time = new Date().toLocaleTimeString('zh-CN', {
@@ -39,6 +40,6 @@ export class MessageLog {
   }
 
   clear() {
-    this.container.innerHTML = '';
+    if (this.container) this.container.innerHTML = '';
   }
 }

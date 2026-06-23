@@ -67,6 +67,19 @@ export class GameEngine {
     const events = [];
     events.push({ type: 'move', from: { x, y }, to: { x: nx, y: ny } });
 
+    // 踏入暗雾 → 消耗令牌 + 清除该格暗雾
+    if (moveResult.fogCost) {
+      this.state.consumeRevealToken(player);
+      this.state.clearDarkFog(nx, ny);
+      events.push({ type: 'fog_cost', x: nx, y: ny, remaining: this.state.revealTokens[player] });
+    }
+
+    // 踏入旗帜 → 消耗令牌揭示旗帜
+    if (moveResult.flagCost) {
+      this.state.consumeRevealToken(player);
+      events.push({ type: 'flag_cost', x: nx, y: ny, remaining: this.state.revealTokens[player] });
+    }
+
     const winResult = this._checkWin(player, nx, ny);
     if (winResult) {
       events.push({ type: 'win', ...winResult });
@@ -78,6 +91,24 @@ export class GameEngine {
   _checkMove(player, fromX, fromY, toX, toY) {
     const toCell = this.state.grid.cells[toY][toX];
 
+    // 暗雾软障碍：有令牌时可通行（消耗1令牌），无令牌时阻挡
+    if (this.state.hasDarkFog(toX, toY)) {
+      if (this.state.hasRevealToken(player)) {
+        return { canMove: true, fogCost: true };
+      }
+      return { canMove: false, reason: '暗雾阻挡！令牌不足，无法进入 (等待步数奖励或对方清除)' };
+    }
+
+    // 旗帜消耗令牌：踏入旗帜格需消耗1令牌，无令牌时旗帜视为 STOP
+    const entities = toCell.entities || [];
+    const hasFlag = entities.some(e => e.type === 'flag');
+    if (hasFlag) {
+      if (this.state.hasRevealToken(player)) {
+        return { canMove: true, flagCost: true };
+      }
+      return { canMove: false, reason: '旗帜阻挡！令牌不足，无法揭示旗帜' };
+    }
+
     if (toCell.terrain === 'wall') {
       const wallProperty = this.state.getEntityProperty(player, 'wall');
       if (wallProperty === PROPERTIES.STOP) {
@@ -85,7 +116,6 @@ export class GameEngine {
       }
     }
 
-    const entities = toCell.entities || [];
     let pushEntity = null;
     let hasWin = false;
     let hasStop = false;

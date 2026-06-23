@@ -94,7 +94,7 @@ export class AIController {
       }
     }
 
-    // 7. 无路可走 → 等待
+    // 7. 无路可走 → 等待（令牌重生后可以清除暗雾）
     return { action: 'wait', player };
   }
 
@@ -235,10 +235,22 @@ export class AIController {
 
   /**
    * 玩家能否踏入目标格（基于该玩家的规则 + 对方揭示的规则）
+   * 暗雾：有令牌时可通行（会消耗令牌），无令牌时阻挡
    */
   _canStepInto(player, x, y) {
     const state = this.game.state;
     const cell = state.grid.cells[y][x];
+
+    // 暗雾软障碍：有令牌→可通行，无令牌→阻挡
+    if (state.hasDarkFog(x, y)) {
+      return state.hasRevealToken(player);
+    }
+
+    // 旗帜消耗令牌：有令牌→可踏入，无令牌→旗帜视为 STOP
+    const entities = cell.entities || [];
+    if (entities.some(e => e.type === 'flag')) {
+      return state.hasRevealToken(player);
+    }
 
     // 墙壁检查
     if (cell.terrain === 'wall') {
@@ -256,7 +268,6 @@ export class AIController {
     }
 
     // 实体检查
-    const entities = cell.entities || [];
     for (const entity of entities) {
       const prop = this._getEffectiveProperty(player, entity.type);
       if (prop === PROPERTIES.STOP) return false;

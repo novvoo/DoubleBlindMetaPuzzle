@@ -1,4 +1,4 @@
-import { PLAYERS, DIRECTIONS, DARK_FOG_INTERVAL, DARK_FOG_MAX } from '../game/constants.js';
+import { PLAYERS, DIRECTIONS, DARK_FOG_INTERVAL, DARK_FOG_MAX, DARK_FOG_PATCH_SIZE } from '../game/constants.js';
 import { GameState } from '../game/GameState.js';
 import { GameEngine } from '../game/GameEngine.js';
 import { getLevel, getLevelCount } from '../game/Levels.js';
@@ -43,7 +43,7 @@ export class Game {
 
     // AI 模式下旗帜位置变化计数器
     this._aiFlagMoveCounter = 0;
-    this._flagMoveInterval = 5;
+    this._flagMoveInterval = 10;
 
     // 暗雾生成计数器（全局步数）
     this._globalStepCount = 0;
@@ -211,6 +211,18 @@ export class Game {
             'system'
           );
           break;
+        case 'fog_cost':
+          this.log.add(
+            `🌫️ ${PLAYER_NAMES[player]} 踏入暗雾！消耗 1 令牌 (剩余: ${evt.remaining})`,
+            'warning'
+          );
+          break;
+        case 'flag_cost':
+          this.log.add(
+            `🚩 ${PLAYER_NAMES[player]} 揭示旗帜！消耗 1 令牌 (剩余: ${evt.remaining})`,
+            'reveal'
+          );
+          break;
         case 'win':
           this.winner = player;
           this.log.add(`🏆 ${PLAYER_NAMES[player]} 获胜！`, 'win');
@@ -288,49 +300,122 @@ export class Game {
     this.rendererA.render();
     this.rendererB.render();
     this.log.add(`🚩 旗帜移动到 (${target.x}, ${target.y})`, 'system');
+
+    // 旗帜移动后，迷雾也跟着重新围绕新旗帜位置生成
+    this._spawnDarkFog();
+    this.rendererA.render();
+    this.rendererB.render();
   }
 
   /**
-   * 在随机已揭示的空地板格上生成暗雾
-   * 暗雾消耗令牌才能清除，制造持续的令牌压力
+   * 围绕旗帜生成暗雾区域 — 迷雾跟随旗帜变动
+   * 有令牌时可以穿行暗雾（消耗令牌并清除），无令牌时阻挡
+   *
+   * 策略：
+   * 1. 找到棋盘上所有旗帜位置
+   * 2. 以旗帜相邻格为种子，BFS 向外扩散形成环绕迷雾
+   * 3. 旗帜格本身不覆盖迷雾（保证可见）
+   * 4. 每次调用先清除全部旧迷雾，重新围绕旗帜生成
    */
   _spawnDarkFog() {
     const state = this.state;
-    const currentCount = state.getDarkFogCount();
-    if (currentCount >= DARK_FOG_MAX) return; // 已达上限
 
-    const posA = state.getPlayerPosition(PLAYERS.A);
-    const posB = state.getPlayerPosition(PLAYERS.B);
-    const candidates = [];
-
+    // 找到所有旗帜位置
+    const flagPositions = [];
     for (let y = 0; y < state.height; y++) {
       for (let x = 0; x < state.width; x++) {
         const cell = state.grid.cells[y][x];
-        // 不能是墙壁
-        if (cell.terrain === 'wall') continue;
-        // 已揭示（双方任一）
-        if (!state.isRevealedTo(PLAYERS.A, x, y) &&
-            !state.isRevealedTo(PLAYERS.B, x, y)) continue;
-        // 不能已有暗雾
-        if (state.hasDarkFog(x, y)) continue;
-        // 不能有实体
-        if (cell.entities && cell.entities.length > 0) continue;
-        // 不能在玩家脚下
-        if ((posA && posA.x === x && posA.y === y) ||
-            (posB && posB.x === x && posB.y === y)) continue;
-        candidates.push({ x, y });
+        if (cell.entities && cell.entities.some(e => e.type === 'flag')) {
+          flagPositions.push({ x, y });
+        }
+      }
+    }
+    if (flagPositions.length === 0) return;
+
+    const posA = state.getPlayerPosition(PLAYERS.A);
+    const posB = state.getPlayerPosition(PLAYERS.B);
+
+    // 清除全部旧迷雾（准备围绕旗帜重新生成）
+    state.darkFogCells.clear();
+
+    // 判断是否可作为迷雾候选
+    const isFogCandidate = (x, y) => {
+      if (x < 0 || x >= state.width || y < 0 || y >= state.height) return false;
+      const cell = state.grid.cells[y][x];
+      if (cell.terrain === 'wall') return false;
+      // 旗帜格本身不覆盖迷雾
+      for (const f of flagPositions) {
+        if (f.x === x && f.y === y) return false;
+      }
+      if (state.hasDarkFog(x, y)) return false;
+      if (cell.entities && cell.entities.length > 0) return false;
+      if ((posA && posA.x === x && posA.y === y) ||
+          (posB && posB.x === x && posB.y === y)) return false;
+      return true;
+    };
+
+    const DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+    const allPatchCells = [];
+    const globalVisited = new Set();
+
+    // 每个旗帜周围分配等量迷雾格子
+    const perFlagTarget = Math.floor(DARK_FOG_PATCH_SIZE / flagPositions.length);
+
+    for (const flag of flagPositions) {
+      // 种子：旗帜的四个相邻格
+      const seeds = [];
+      for (const [dx, dy] of DIRS) {
+        const nx = flag.x + dx;
+        const ny = flag.y + dy;
+        if (isFogCandidate(nx, ny)) {
+          seeds.push({ x: nx, y: ny });
+        }
+      }
+      if (seeds.length === 0) continue;
+
+      const patchCells = [];
+      const visited = new Set();
+      const queue = [...seeds.sort(() => Math.random() - 0.5)];
+      for (const s of queue) {
+        visited.add(`${s.x},${s.y}`);
+        globalVisited.add(`${s.x},${s.y}`);
+      }
+
+      const flagLimit = Math.min(perFlagTarget, DARK_FOG_MAX - allPatchCells.length);
+
+      while (queue.length > 0 && patchCells.length < flagLimit) {
+        const idx = Math.floor(Math.random() * queue.length);
+        const cur = queue.splice(idx, 1)[0];
+        patchCells.push(cur);
+
+        const shuffled = DIRS.sort(() => Math.random() - 0.5);
+        for (const [dx, dy] of shuffled) {
+          const nx = cur.x + dx;
+          const ny = cur.y + dy;
+          const key = `${nx},${ny}`;
+          if (visited.has(key) || globalVisited.has(key)) continue;
+          visited.add(key);
+          globalVisited.add(key);
+          if (isFogCandidate(nx, ny)) {
+            queue.push({ x: nx, y: ny });
+          }
+        }
+      }
+
+      for (const c of patchCells) {
+        allPatchCells.push(c);
       }
     }
 
-    if (candidates.length === 0) return;
+    for (const cell of allPatchCells) {
+      state.addDarkFog(cell.x, cell.y);
+    }
 
-    // 每次生成 1-2 个暗雾
-    const count = Math.min(1 + Math.floor(Math.random() * 2), DARK_FOG_MAX - currentCount);
-    const shuffled = candidates.sort(() => Math.random() - 0.5);
-
-    for (let i = 0; i < count && i < shuffled.length; i++) {
-      state.addDarkFog(shuffled[i].x, shuffled[i].y);
-      this.log.add(`🌫️ 暗雾出现于 (${shuffled[i].x}, ${shuffled[i].y})`, 'system');
+    if (allPatchCells.length > 0) {
+      this.log.add(
+        `🌫️ 暗雾围绕 ${flagPositions.length} 面旗帜生成：${allPatchCells.length} 格`,
+        'system'
+      );
     }
   }
 
@@ -358,7 +443,8 @@ export class Game {
 
   _setupButtons() {
     document.getElementById('btn-reset').addEventListener('click', () => this.reset());
-    document.getElementById('btn-clear-log').addEventListener('click', () => this.log.clear());
+    const btnClearLog = document.getElementById('btn-clear-log');
+    if (btnClearLog) btnClearLog.addEventListener('click', () => this.log.clear());
     // 单关卡模式，隐藏"下一关"按钮
     const btnNextCtrl = document.getElementById('btn-next-level-ctrl');
     if (btnNextCtrl) btnNextCtrl.style.display = 'none';
@@ -506,6 +592,18 @@ export class Game {
             `${PLAYER_NAMES[player]} 向${DIR_NAMES[direction]}移动 ` +
             `(${evt.from.x},${evt.from.y}) → (${evt.to.x},${evt.to.y})`,
             'system'
+          );
+          break;
+        case 'fog_cost':
+          this.log.add(
+            `🌫️ ${PLAYER_NAMES[player]} 踏入暗雾！消耗 1 令牌 (剩余: ${evt.remaining})`,
+            'warning'
+          );
+          break;
+        case 'flag_cost':
+          this.log.add(
+            `🚩 ${PLAYER_NAMES[player]} 揭示旗帜！消耗 1 令牌 (剩余: ${evt.remaining})`,
+            'reveal'
           );
           break;
         case 'win':

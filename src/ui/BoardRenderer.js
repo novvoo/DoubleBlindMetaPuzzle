@@ -149,7 +149,7 @@ export class BoardRenderer {
         cell.classList.add('has-ghost');
       }
       cell.innerHTML = fogHtml;
-      cell.title = `暗雾 (按 Q/U 消耗令牌清除)`;
+      cell.title = `暗雾区域 - 阻挡移动 (按 Q/U 消耗1令牌清除)`;
       return;
     }
 
